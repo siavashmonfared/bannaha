@@ -25,6 +25,7 @@ uv tool install "bannaha[all]"        # or: pipx install "bannaha[all]"
 From a clone:
 
 ```bash
+git clone https://github.com/siavashmonfared/bannaha && cd bannaha
 uv sync --all-extras
 uv run bannaha --help
 ```
