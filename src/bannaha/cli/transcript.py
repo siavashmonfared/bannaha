@@ -24,6 +24,7 @@ from rich.text import Text
 from ..core import events as ev
 from ..core.events import Event
 from ..core.text import clip, tilde
+from ..tui.banner import header  # banna's mascot header, shared with banna's own CLI
 from .live import SPINNER, _fmt_cost, _fmt_tokens, describe_event, describe_round, tool_brief
 from .themes import Theme
 
@@ -193,8 +194,6 @@ class Transcript:
 
     def _session_header(self, d: dict[str, Any]) -> RenderableType:
         t = self.t
-        from ..tui.banner import header  # banna's mascot header, shared with banna's own CLI
-
         head = header(str(d.get("strategy", "")), t.name)
         head.append(d.get("question", "") + "\n", "bold")
         fleet = Text()

@@ -11,12 +11,18 @@ from textual.widgets import Static
 
 from ..cli.themes import resolve
 
+# Imported here, when the app module loads, never lazily from a running screen: older banna releases
+# load readline on this import, which turns terminal echo back on under a running full-screen app
+# (mouse reports then print as ^[[<35;...M text).
+try:
+    from banna_agent.cli.theme import brand_header
+except ImportError:  # banna ships with bannaha; keep the app usable if an install is broken
+    brand_header = None
+
 
 def header(page: str = "", theme: str | None = None) -> Text:
     """bannaha's header text: banna's mascot, the name, and the current page."""
-    try:
-        from banna_agent.cli.theme import brand_header
-    except ImportError:  # banna ships with bannaha; keep the app usable if an install is broken
+    if brand_header is None:
         return Text.assemble(("bannaha", "bold"), (f" — {page}" if page else "", "dim"))
     return brand_header("bannaha", page, resolve(theme))
 

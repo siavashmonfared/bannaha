@@ -218,3 +218,16 @@ def test_header_is_bannas_mascot_with_the_bannaha_name():
     except ImportError:
         return
     assert header("run", "dracula").plain == brand_header("bannaha", "run", "dracula").plain
+
+
+def test_running_app_never_loads_readline():
+    """readline reconfigures the tty (echo back on) when it loads; under a running Textual app that makes
+    mouse reports print as text. Everything the screens import must be loaded before the app starts."""
+    import subprocess
+    import sys
+
+    code = ("import sys, bannaha.tui.app; before = 'readline' in sys.modules; "
+            "from bannaha.tui.banner import header; header('setup'); "
+            "print(before or 'readline' not in sys.modules)")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == "True"
