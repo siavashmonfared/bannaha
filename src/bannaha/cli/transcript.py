@@ -193,9 +193,9 @@ class Transcript:
 
     def _session_header(self, d: dict[str, Any]) -> RenderableType:
         t = self.t
-        head = Text()
-        head.append("bannaha", f"bold {t.title}")
-        head.append(f" · {d.get('strategy', '')}\n", t.accent)
+        from ..tui.banner import header  # banna's mascot header, shared with banna's own CLI
+
+        head = header(str(d.get("strategy", "")), t.name)
         head.append(d.get("question", "") + "\n", "bold")
         fleet = Text()
         for aid, a in self.agents.items():

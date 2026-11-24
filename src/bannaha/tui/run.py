@@ -56,7 +56,7 @@ class RunScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield PageBar("run")
-        yield Banner()
+        yield Banner("run")
         yield RichLog(id="log", wrap=True, auto_scroll=True, markup=False, highlight=False, min_width=40)
         with VerticalScroll(id="live"):
             yield Static(id="hdr")

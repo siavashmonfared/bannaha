@@ -83,7 +83,7 @@ class SetupScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield PageBar("setup")
-        yield Banner()
+        yield Banner("setup")
         with Vertical(id="frame"):
             yield OptionList(id="rows")
         yield Static(id="status")
@@ -133,7 +133,7 @@ class SetupScreen(Screen):
         if key == "theme":
             return resolve(s.theme), THEME_BLURBS.get(resolve(s.theme), "colors of the app and run panels")
         if key == "banner":
-            return ("on" if s.banner else "off"), "the animated header (ctrl+b toggles it anywhere)"
+            return ("on" if s.banner else "off"), "the mascot header (ctrl+b toggles it anywhere)"
         return "", ""
 
     def _row(self, key: str, label: str) -> Text:

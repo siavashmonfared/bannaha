@@ -54,7 +54,7 @@ class RunsScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield PageBar("runs")
-        yield Banner()
+        yield Banner("runs")
         yield DataTable(id="runs", cursor_type="row", zebra_stripes=True)
         yield Static(id="info")
         yield Footer()

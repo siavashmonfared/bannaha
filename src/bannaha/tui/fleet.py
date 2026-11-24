@@ -46,7 +46,7 @@ class FleetScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield PageBar("fleet")
-        yield Banner()
+        yield Banner("fleet")
         yield DataTable(id="table", cursor_type="row", zebra_stripes=True)
         yield Static(id="info")
         yield Footer()

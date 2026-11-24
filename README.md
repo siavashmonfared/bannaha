@@ -120,8 +120,8 @@ Run `bannaha` with no arguments to open the full-screen app. Number keys switch 
 | **4 Run** | type a question in the `›` box and press Enter; agents (with live tokens and cost), board activity, rounds and the answer update live, and the **activity** panel shows, per agent, the tool call it is running and its last few steps (searches, pages, code, messages, errors). Esc cancels a run, ↑↓ recall earlier questions |
 | **5 Runs** | every saved run; ↵ replays a run's rounds, board and answer |
 
-The animated header (a torus and the crew member who builds on it) sits under the page bar; `ctrl+b`
-hides or shows it on any page, and Setup → Banner saves the choice.
+The header under the page bar is banna's scout mascot with the bannaha name, the same header banna's
+launch screen shows; `ctrl+b` hides or shows it on any page, and Setup → Banner saves the choice.
 
 The app shares its look with [banna](https://github.com/siavashmonfared/banna): the same themes
 (`solarized-light`, the default, `solarized-dark`, `gruvbox-dark`, `dracula`, `mono`), registered as the

@@ -72,7 +72,7 @@ class KeysScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield PageBar("keys")
-        yield Banner()
+        yield Banner("keys")
         yield DataTable(id="keys", cursor_type="row", zebra_stripes=True)
         yield Static(id="help")
         yield Footer()

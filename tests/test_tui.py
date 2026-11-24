@@ -206,3 +206,15 @@ def test_activity_panel_shows_recent_steps():
     console.print(st.activity_panel())
     out = console.export_text()
     assert "read_board" in out and "propose_answer" in out
+
+
+def test_header_is_bannas_mascot_with_the_bannaha_name():
+    from bannaha.tui.banner import header
+
+    first = header("setup", "solarized-light").plain.split("\n")[0]
+    assert first.endswith("bannaha — setup")
+    try:
+        from banna_agent.cli.theme import brand_header
+    except ImportError:
+        return
+    assert header("run", "dracula").plain == brand_header("bannaha", "run", "dracula").plain

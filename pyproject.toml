@@ -1,6 +1,6 @@
 [project]
 name = "bannaha"
-version = "0.3.0"
+version = "0.3.1"
 description = "A terminal sandbox for comparing multi-agent coordination strategies across agent harnesses and model backends."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -34,7 +34,7 @@ dependencies = [
     "google-adk>=1.0",
     "hermes-agent>=0.19",
     "mcp>=1.0",
-    "banna>=0.6.0",
+    "banna>=0.6.1",
     "litellm>=1.50",
     "boto3>=1.34",
 ]
