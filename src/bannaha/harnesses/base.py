@@ -22,6 +22,8 @@ if TYPE_CHECKING:
     from ..core.fleet import Agent
     from ..core.tools import JsonDict, Tool
 
+REINSTALL = "reinstall bannaha: uv tool install --force bannaha (or pip install --force-reinstall bannaha)"
+
 NUDGE = ("You ended your turn without calling a finishing tool. Call one of these now: {names}. "
          "If you are unsure, give your best answer and say so in the rationale.")
 
@@ -199,8 +201,8 @@ class Harness(ABC):
             problems.append(f"harness {cls.name!r} does not support backend {backend!r} (supported: {supported})")
             return problems
         if not cls.available():
-            problems.append(f"harness {cls.name!r} needs the {cls.requires_module!r} package: "
-                            f"uv tool install 'bannaha[{cls.extra}]' (or pip install 'bannaha[{cls.extra}]')")
+            problems.append(f"harness {cls.name!r} needs the {cls.requires_module!r} package, which ships with "
+                            f"bannaha but is missing from this install; {REINSTALL}")
         for alternatives in cls.requirements(backend, model):
             if not any(os.environ.get(v) for v in alternatives):
                 problems.append(f"{cls.name}@{backend} needs {' or '.join(alternatives)} in the environment")

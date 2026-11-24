@@ -57,6 +57,10 @@ class FleetEntry:
         return f"{self.harness}@{self.backend}:{self.model}"
 
 
+# Harness names that were renamed; old fleet specs and saved settings keep working.
+HARNESS_ALIASES = {"adk": "google"}
+
+
 def parse_fleet(spec: str) -> list[FleetEntry]:
     entries: list[FleetEntry] = []
     for raw in (spec or "").split(","):
@@ -78,7 +82,8 @@ def parse_fleet(spec: str) -> list[FleetEntry]:
         backend, model = rest.split(":", 1)
         if not (harness and backend and model):
             raise FleetError(f"expected harness@backend:model[*count], got {raw.strip()!r}")
-        entries.append(FleetEntry(harness.strip().lower(), backend.strip().lower(), model.strip(), count))
+        name = harness.strip().lower()
+        entries.append(FleetEntry(HARNESS_ALIASES.get(name, name), backend.strip().lower(), model.strip(), count))
     if not entries:
         raise FleetError("fleet is empty")
     return entries

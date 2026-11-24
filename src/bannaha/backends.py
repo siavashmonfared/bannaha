@@ -27,7 +27,8 @@ def bedrock_problems() -> list[str]:
     if not aws_region():
         problems.append("bedrock needs AWS_REGION (or AWS_DEFAULT_REGION)")
     if importlib.util.find_spec("boto3") is None:
-        problems.append("bedrock needs boto3: install 'bannaha[bedrock]'")
+        problems.append("bedrock needs boto3, which ships with bannaha but is missing from this install; "
+                        "reinstall bannaha: uv tool install --force bannaha")
         return problems
     import boto3
 
@@ -42,5 +43,6 @@ def bedrock_problems() -> list[str]:
 
 def litellm_problems(harness: str, backend: str) -> list[str]:
     if importlib.util.find_spec("litellm") is None:
-        return [f"{harness}@{backend} goes through LiteLLM: install 'bannaha[litellm]'"]
+        return [f"{harness}@{backend} goes through LiteLLM, which ships with bannaha but is missing from this "
+                "install; reinstall bannaha: uv tool install --force bannaha"]
     return []

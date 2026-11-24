@@ -20,13 +20,13 @@ APP = "bannaha"
 
 
 @register_harness
-class ADKHarness(Harness):
-    name = "adk"
+class GoogleHarness(Harness):
+    name = "google"
     summary = "Google Agent Development Kit (Gemini natively; OpenRouter and Bedrock via LiteLLM)."
     backends = {"direct": [("GEMINI_API_KEY", "GOOGLE_API_KEY")], "openrouter": [("OPENROUTER_API_KEY",)],
                 "bedrock": []}
     requires_module = "google.adk"
-    extra = "adk"
+    extra = "google"
     model_hints = {
         "direct": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"],
         "openrouter": ["anthropic/claude-haiku-4.5", "openai/gpt-5-mini", "qwen/qwen3-235b-a22b-2507"],
@@ -120,3 +120,6 @@ class ADKHarness(Harness):
                 break
             message = NUDGE.format(names=", ".join(req.terminal_names))
         return reply
+
+
+ADKHarness = GoogleHarness  # the harness was called `adk` before 0.3.0

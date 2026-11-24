@@ -133,7 +133,7 @@ class FleetScreen(Screen):
         registry = harnesses()
         opts = []
         for name, cls in registry.items():
-            mark = "" if cls.available() else f"  (install bannaha[{cls.extra}])"
+            mark = "" if cls.available() else "  (missing: reinstall bannaha)"
             opts.append((name, name, f"{cls.summary}{mark}"))
         harness = await self.app.push_screen_wait(PickerModal("Harness", opts, cur.harness if cur else None))
         if not harness:

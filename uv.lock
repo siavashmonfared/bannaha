@@ -243,7 +243,7 @@ wheels = [
 
 [[package]]
 name = "banna"
-version = "0.5.1"
+version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anthropic" },
@@ -261,58 +261,30 @@ dependencies = [
     { name = "rich" },
     { name = "textual" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/43/01/aece5b3363e50a935a3229cb29d2fe8019497d4df1b23e6f1f47fc747f16/banna-0.5.1.tar.gz", hash = "sha256:c02ede610829314e673b560cb41f6aca7e06dda61ee160f1a0c33b0aa15d5624", size = 272810, upload-time = "2026-11-24T19:03:09.92Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/dc/dbf98bd964dd330e40bbe6288d70a5d3bec6b49fdd1ccb6f2c0659b5fb61/banna-0.6.0.tar.gz", hash = "sha256:0f3232b056324f3123461e78adb1813001e857bb0fdba1f3c7c0368f3ebdf5dc", size = 272499, upload-time = "2026-11-24T19:36:27.636Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/2f/f43163ad9f64360f42cffac00d93f1c539ad09a623f45a7ac63c8cbffa61/banna-0.5.1-py3-none-any.whl", hash = "sha256:2ad356c6a50286ebaa52eaed058b9acd301b3ba10d65bc2817fd8ecf5868eb03", size = 328739, upload-time = "2026-11-24T19:03:08.005Z" },
+    { url = "https://files.pythonhosted.org/packages/36/12/ba113b264d21c334d2d5d448826ec97164d7d49341b807b2a8443eb218f3/banna-0.6.0-py3-none-any.whl", hash = "sha256:f02ece2bce950c4661d5f1b873fe49577f43ea8f2a4614f61a423871d1c3e4bc", size = 328332, upload-time = "2026-11-24T19:36:25.899Z" },
 ]
 
 [[package]]
 name = "bannaha"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
+    { name = "anthropic", extra = ["bedrock"] },
+    { name = "banna" },
+    { name = "boto3" },
+    { name = "google-adk" },
     { name = "google-genai" },
+    { name = "hermes-agent" },
     { name = "httpx" },
+    { name = "litellm" },
+    { name = "mcp" },
+    { name = "openai-agents" },
     { name = "rich" },
     { name = "textual" },
     { name = "tomli-w" },
     { name = "typer" },
-]
-
-[package.optional-dependencies]
-adk = [
-    { name = "google-adk" },
-]
-all = [
-    { name = "anthropic", extra = ["bedrock"] },
-    { name = "banna" },
-    { name = "boto3" },
-    { name = "google-adk" },
-    { name = "hermes-agent" },
-    { name = "litellm" },
-    { name = "mcp" },
-    { name = "openai-agents" },
-]
-anthropic = [
-    { name = "anthropic" },
-]
-banna = [
-    { name = "banna" },
-]
-bedrock = [
-    { name = "anthropic", extra = ["bedrock"] },
-    { name = "boto3" },
-    { name = "litellm" },
-]
-hermes = [
-    { name = "hermes-agent" },
-    { name = "mcp" },
-]
-litellm = [
-    { name = "litellm" },
-]
-openai = [
-    { name = "openai-agents" },
 ]
 
 [package.dev-dependencies]
@@ -323,25 +295,22 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.40" },
-    { name = "anthropic", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=0.40" },
-    { name = "banna", marker = "extra == 'banna'", specifier = ">=0.5.1" },
-    { name = "bannaha", extras = ["anthropic", "openai", "adk", "hermes", "banna", "litellm", "bedrock"], marker = "extra == 'all'" },
-    { name = "boto3", marker = "extra == 'bedrock'", specifier = ">=1.34" },
-    { name = "google-adk", marker = "extra == 'adk'", specifier = ">=1.0" },
+    { name = "anthropic", extras = ["bedrock"], specifier = ">=0.40" },
+    { name = "banna", specifier = ">=0.6.0" },
+    { name = "boto3", specifier = ">=1.34" },
+    { name = "google-adk", specifier = ">=1.0" },
     { name = "google-genai", specifier = ">=1.0" },
-    { name = "hermes-agent", marker = "extra == 'hermes'", specifier = ">=0.19" },
+    { name = "hermes-agent", specifier = ">=0.19" },
     { name = "httpx", specifier = ">=0.27" },
-    { name = "litellm", marker = "extra == 'bedrock'", specifier = ">=1.50" },
-    { name = "litellm", marker = "extra == 'litellm'", specifier = ">=1.50" },
-    { name = "mcp", marker = "extra == 'hermes'", specifier = ">=1.0" },
-    { name = "openai-agents", marker = "extra == 'openai'", specifier = ">=0.2" },
+    { name = "litellm", specifier = ">=1.50" },
+    { name = "mcp", specifier = ">=1.0" },
+    { name = "openai-agents", specifier = ">=0.2" },
     { name = "rich", specifier = ">=13.7" },
     { name = "textual", specifier = ">=1.0" },
     { name = "tomli-w", specifier = ">=1.0" },
     { name = "typer", specifier = ">=0.12" },
 ]
-provides-extras = ["anthropic", "openai", "adk", "hermes", "banna", "litellm", "bedrock", "all"]
+provides-extras = ["anthropic", "openai", "adk", "google", "hermes", "banna", "litellm", "bedrock", "all"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -263,7 +263,7 @@ def list_cmd(what: str = typer.Argument("all", help="strategies, harnesses, tool
         table.add_column("installed")
         table.add_column("summary", style=t.muted)
         for name, cls in harnesses().items():
-            installed = "yes" if cls.available() else escape(f"no: bannaha[{cls.extra}]")
+            installed = "yes" if cls.available() else "no: reinstall bannaha"
             table.add_row(name, ", ".join(cls.backends), installed, cls.summary)
         console.print(table)
     if what in ("all", "tools"):

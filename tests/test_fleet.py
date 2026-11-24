@@ -27,3 +27,18 @@ def test_check_fleet_reports_unknown_harness_backend_and_missing_keys(monkeypatc
     assert any("does not support backend 'openrouter'" in p for p in problems)
     assert any("ANTHROPIC_API_KEY" in p for p in problems)
     assert check_fleet(parse_fleet("mock@local:42*2")) == []
+
+
+def test_adk_is_an_alias_for_the_google_harness():
+    from bannaha.core.fleet import parse_fleet
+    from bannaha.core.registry import harnesses
+
+    assert [e.harness for e in parse_fleet("adk@direct:gemini-2.5-flash*2,google@direct:gemini-2.5-pro")] == \
+        ["google", "google"]
+    assert "google" in harnesses() and "adk" not in harnesses()
+
+
+def test_every_harness_ships_with_the_core_install():
+    from bannaha.core.registry import harnesses
+
+    assert {n for n, cls in harnesses().items() if not cls.available()} == set()

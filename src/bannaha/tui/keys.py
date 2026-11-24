@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 KEYS = [
     (("ANTHROPIC_API_KEY",), "anthropic@direct · banna@direct:anthropic/…"),
     (("OPENAI_API_KEY",), "openai@direct · hermes@direct · banna@direct:openai/…"),
-    (("GEMINI_API_KEY", "GOOGLE_API_KEY"), "adk@direct · banna@direct:gemini/… · web search"),
+    (("GEMINI_API_KEY", "GOOGLE_API_KEY"), "google@direct · banna@direct:gemini/… · web search"),
     (("OPENROUTER_API_KEY",), "any harness @openrouter"),
     (("AWS_REGION", "AWS_DEFAULT_REGION"), "any harness @bedrock"),
     (("BANNAHA_HERMES_BASE_URL",), "hermes@local (OpenAI-compatible server)"),
@@ -45,7 +45,7 @@ def _aws_credentials() -> tuple[bool, str]:
     try:
         import boto3
     except ImportError:
-        return False, "boto3 not installed (bannaha[bedrock])"
+        return False, "boto3 missing (reinstall bannaha)"
     try:
         creds = boto3.Session().get_credentials()
     except Exception as exc:  # botocore raises many profile/config errors

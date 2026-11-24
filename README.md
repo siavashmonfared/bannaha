@@ -5,7 +5,7 @@ coordinate, and watch it happen live: who searches what, which claims get posted
 how the group reaches an answer, and what happens when part of the fleet goes dark.
 
 - **Any harness, any backend.** Mix agents built on different agent loops (Anthropic SDK, OpenAI Agents
-  SDK, Google ADK, Hermes Agent, banna) reaching models through different routes (direct API, OpenRouter,
+  SDK, Google ADK, Hermes Agent, banna), all included in the install, reaching models through different routes (direct API, OpenRouter,
   Amazon Bedrock) in one fleet.
 - **Pluggable strategies.** A single-agent baseline, independent voting, a shared blackboard where
   peers cross-check evidence until they agree, and a deliberative vote where peers rank each other's
@@ -23,20 +23,22 @@ how the group reaches an answer, and what happens when part of the fleet goes da
 ## Install
 
 ```bash
-uv tool install "bannaha[all]"        # or: pipx install "bannaha[all]"
+uv tool install bannaha        # or: pipx install bannaha
+uvx bannaha                    # or run it once without installing
 ```
+
+Every harness ships with bannaha (Anthropic SDK, OpenAI Agents SDK, Google ADK, Hermes Agent, banna,
+plus LiteLLM and boto3 for OpenRouter and Bedrock routes), so any fleet runs from a plain install.
 
 From a clone:
 
 ```bash
 git clone https://github.com/siavashmonfared/bannaha && cd bannaha
-uv sync --all-extras
+uv sync
 uv run bannaha --help
 ```
 
-Extras: `anthropic`, `openai` (OpenAI Agents SDK), `adk` (Google ADK), `hermes` (Hermes Agent), `banna`,
-`litellm` (ADK and OpenAI-SDK access to OpenRouter/Bedrock models), `bedrock` (boto3 + LiteLLM), `all`.
-Install only what you use; `hermes` in particular pulls in a large dependency tree.
+The old extras (`bannaha[all]`, `bannaha[banna]`, ...) are still accepted and add nothing.
 
 ## Quickstart
 
@@ -63,7 +65,7 @@ in the environment win; empty values are ignored. `.env.example` lists every var
 ```bash
 ANTHROPIC_API_KEY=...     # anthropic@direct, banna@direct:anthropic/...
 OPENAI_API_KEY=...        # openai@direct, hermes@direct, banna@direct:openai/...
-GEMINI_API_KEY=...        # adk@direct, banna@direct:gemini/..., and web search
+GEMINI_API_KEY=...        # google@direct, banna@direct:gemini/..., and web search
 OPENROUTER_API_KEY=...    # any harness @openrouter
 AWS_REGION=us-east-1      # any harness @bedrock, plus AWS credentials: AWS_PROFILE,
 AWS_PROFILE=default       # or AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY, or `aws sso login`
@@ -145,7 +147,7 @@ Defaults come from the Setup page (saved settings); flags override them for one 
 live at list prices (`bannaha prices`): each agent's model tokens plus its web searches (Gemini search
 tokens and $0.035 per search). When the run reaches `--max-cost` it stops at the next tool call;
 an agent that reaches `--max-agent-cost` ends its turn and does no more work while the others carry on.
-The Anthropic, OpenAI Agents and ADK harnesses report tokens after every model call, so their limits
+The anthropic, openai and google harnesses report tokens after every model call, so their limits
 apply mid-turn; Hermes and banna report at the end of a turn, so their spend is checked between turns.
 `result.json` records each agent's tokens, searches and cost, and the run total.
 
@@ -165,7 +167,7 @@ A fleet is `harness@backend:model*count`, comma separated. Count defaults to 1.
 |---|---|---|
 | `anthropic` | `direct`, `bedrock` | Anthropic SDK, Messages API tool-use loop |
 | `openai` | `direct`, `openrouter`, `bedrock` | OpenAI Agents SDK; tracing disabled; Bedrock via LiteLLM |
-| `adk` | `direct` (Gemini), `openrouter`, `bedrock` | Google ADK; non-Gemini models via LiteLLM |
+| `google` | `direct` (Gemini), `openrouter`, `bedrock` | Google Agent Development Kit (ADK); non-Gemini models via LiteLLM. Called `adk` before 0.3.0; `adk@…` still works |
 | `hermes` | `openrouter`, `direct` (OpenAI), `local` | Nous Research Hermes Agent; `local` is any OpenAI-compatible server at `BANNAHA_HERMES_BASE_URL` |
 | `banna` | `direct`, `openrouter`, `bedrock`, `local` | banna's ReAct policy; on `direct` the model is `vendor/model` (`anthropic/…`, `openai/…`, `gemini/…`); `local` is an Ollama model such as `banna@local:qwen2.5:3b` (`OLLAMA_BASE_URL`, default `http://localhost:11434`) |
 | `mock` | `local` | offline scripted agent for demos and tests |
@@ -189,7 +191,7 @@ Some notes on how the adapters work:
   context files and persona loading off; your own `~/.hermes` is not read or written.
 - **banna**: banna's loop has its own final-answer step; if a model answers that way instead of calling
   the turn's finishing tool, the answer is submitted through that tool.
-- **ADK**: tools declare their full JSON Schema, and instructions are passed so ADK does not treat
+- **google (ADK)**: tools declare their full JSON Schema, and instructions are passed so ADK does not treat
   braces in a prompt as template variables.
 
 ## Strategies

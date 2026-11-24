@@ -145,7 +145,7 @@ def _adk():
     from google.adk.models import BaseLlm, LlmResponse
     from google.genai import types
 
-    from bannaha.harnesses.adk import ADKHarness
+    from bannaha.harnesses.google_adk import GoogleHarness
 
     class FakeGemini(BaseLlm):
         calls: int = 0
@@ -163,14 +163,14 @@ def _adk():
                                                                           candidates_token_count=2))
 
     fake = FakeGemini(model="fake-gemini")
-    h = ADKHarness()
+    h = GoogleHarness()
     h._model = lambda req: fake
     return h, fake
 
 
-def test_adk_round_trips_args_with_full_json_schema():
+def test_google_round_trips_args_with_full_json_schema():
     h, fake = _adk()
-    req, calls = make_request(Agent("a0", "adk", "direct", "m"))
+    req, calls = make_request(Agent("a0", "google", "direct", "m"))
     reply = h.run_turn(req)
     assert calls == [("echo", NESTED), ("finish", {"answer": "42"})]
     declared = dict(fake.declared)
@@ -178,9 +178,9 @@ def test_adk_round_trips_args_with_full_json_schema():
     assert reply.input_tokens == 10
 
 
-def test_adk_agent_dropped_ends_the_run():
+def test_google_agent_dropped_ends_the_run():
     h, fake = _adk()
-    req, _ = make_request(Agent("a0", "adk", "direct", "m"), drop_on_first=True)
+    req, _ = make_request(Agent("a0", "google", "direct", "m"), drop_on_first=True)
     with pytest.raises(AgentDropped):
         h.run_turn(req)
     assert fake.calls == 1
