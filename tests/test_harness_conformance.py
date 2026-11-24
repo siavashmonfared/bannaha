@@ -376,3 +376,45 @@ def test_openai_nudges_once_when_the_model_stops_without_finishing():
     req, calls = make_request(Agent("a0", "openai", "direct", "m"))
     h.run_turn(req)
     assert calls == [("finish", {"answer": "42"})] and Lazy.calls == 2
+
+
+def test_banna_recovers_a_finishing_call_written_as_text():
+    h, _ = _banna([("text", 'Here is my call: {"name": "finish", "arguments": {"answer": "42"}}')])
+    req, calls = make_request(Agent("a0", "banna", "local", "qwen2.5:3b"))
+    h.run_turn(req)
+    assert calls == [("finish", {"answer": "42"})]
+
+
+def test_banna_local_backend_uses_bannas_ollama_client(monkeypatch):
+    pytest.importorskip("banna_agent")
+    from banna_agent.llm import registry as llm
+
+    from bannaha.harnesses.banna import BannaHarness
+
+    seen = {}
+    monkeypatch.setattr(llm, "make_client", lambda provider, **kw: seen.update(provider=provider, **kw) or "client")
+    req, _ = make_request(Agent("a0", "banna", "local", "qwen2.5:3b"))
+    assert BannaHarness()._client(req) == ("client", "qwen2.5:3b")
+    assert seen == {"provider": "ollama", "model": "qwen2.5:3b"}
+    assert BannaHarness.check("local", "qwen2.5:3b") == []
+
+
+def test_anthropic_recovers_a_call_written_as_text():
+    from bannaha.harnesses.anthropic_sdk import AnthropicHarness
+
+    class Fake:
+        messages = None
+        calls = 0
+
+        def create(self, **kw):
+            Fake.calls += 1
+            return SimpleNamespace(content=[_Block(type="text", text='finish(answer="42")')],
+                                   usage=SimpleNamespace(input_tokens=1, output_tokens=1))
+
+    fake = Fake()
+    fake.messages = fake
+    h = AnthropicHarness()
+    h._client = lambda backend: fake
+    req, calls = make_request(Agent("a0", "anthropic", "direct", "m"))
+    h.run_turn(req)
+    assert calls == [("finish", {"answer": "42"})] and Fake.calls == 1

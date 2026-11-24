@@ -23,7 +23,7 @@ def test_parse_command():
 
 def test_strongest_is_the_priciest_model(monkeypatch):
     prices = {"claude-opus-4-6": 25e-6, "claude-haiku-4-5": 5e-6, "gpt-5.5": 30e-6}
-    monkeypatch.setattr(fu, "price_for", lambda backend, model: Price(1e-6, prices[model], "test"))
+    monkeypatch.setattr(fu, "price_for", lambda backend, model, **kw: Price(1e-6, prices[model], "test"))
     labels = ["anthropic@direct:claude-haiku-4-5", "anthropic@direct:claude-opus-4-6", "openai@direct:gpt-5.5"]
     assert fu.strongest(labels) == "openai@direct:gpt-5.5"
 

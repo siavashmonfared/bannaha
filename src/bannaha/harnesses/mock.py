@@ -30,6 +30,11 @@ def _majority(values: list[str], own: str) -> str:
     return next(v for v, n in counts.items() if n == best)
 
 
+def _agent_key(aid: str) -> tuple[str, int]:
+    m = re.match(r"(\D*)(\d+)$", aid)
+    return (m.group(1), int(m.group(2))) if m else (aid, 0)
+
+
 def _slug(v: str) -> str:
     return re.sub(r"\W+", "-", v).strip("-") or "x"
 
@@ -72,11 +77,14 @@ class MockHarness(Harness):
             cands = window.get("candidates", [])
             mine = [c["id"] for c in cands if c["value"].rstrip("!") == value]
             rest = [c["id"] for c in sorted(cands, key=lambda c: -len(c.get("proposed_by", []))) if c["id"] not in mine]
-            call("cast_vote", {"window_id": window.get("window_id"), "ranking": mine + rest})
+            call("cast_vote", {"window_id": window.get("window_id"), "ranking": mine + rest,
+                               "reason": "closest to my own answer"})
         elif "propose_answer" in tools:
             board = call("read_board", {})
             chosen = value
-            earlier = [p for p in board["proposals"] if p["round"] < board["round"]]
+            # Agent-id order, not arrival order: turns run in parallel, so arrival order would make ties flaky.
+            earlier = sorted((p for p in board["proposals"] if p["round"] < board["round"]),
+                             key=lambda p: _agent_key(p["agent"]))
             if earlier:
                 last = max(p["round"] for p in earlier)
                 chosen = persuaded([p["value"] for p in earlier if p["round"] == last])

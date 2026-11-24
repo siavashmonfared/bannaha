@@ -7,9 +7,12 @@ that sits under the page bar. `ctrl+b` (or Setup → Banner) hides it.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 from rich.text import Text
 from textual.widgets import Static
+
+from ..cli.themes import get_palette
 
 RAMP = " .:-+*=%@#"  # dark -> bright
 R1, R2, K2 = 1.0, 2.0, 5.0  # tube radius, ring radius, viewer distance
@@ -58,11 +61,33 @@ HAMMER = [
 ]
 JUMP = [_TOP + [("  \\|##|/", "  gbbbbg"), _HIPS, ("  _/  \\_", "  bb  bb")]]
 SPRITE_H = 7
-COLORS = {"g": "color(34)", "b": "color(27)", "s": "color(223)", "w": "bold bright_white", "k": "color(245)",
-          "y": "bold bright_yellow"}
-GROUND_STYLE = "color(94)"
-BANNER_STYLE = "bold bright_yellow"
-TAGLINE_STYLE = "color(245)"
+
+
+def _mix(a: str, b: str, t: float) -> str:
+    """Blend two #rrggbb colors; t=0 gives a, t=1 gives b."""
+    ca = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
+    cb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(ca, cb, strict=True))
+
+
+@dataclass(frozen=True)
+class Styles:
+    """Banner colors drawn from a banna palette (see cli.themes), so it reads on light and dark themes."""
+    sprite: dict[str, str]
+    ramp: tuple[str, ...]  # torus shades, dim -> bright against the theme background
+    ground: str
+    banner: str
+    tagline: str
+
+    @classmethod
+    def from_palette(cls, p: dict[str, str]) -> Styles:
+        ramp = tuple(_mix(p["base1"], p["base01"], i / 14) for i in range(15))
+        return cls(sprite={"g": p["green"], "b": p["blue"], "s": p["orange"], "w": f"bold {p['base01']}",
+                           "k": p["base1"], "y": f"bold {p['yellow']}"},
+                   ramp=ramp, ground=p["base1"], banner=f"bold {p['green']}", tagline=p["base1"])
+
+
+DEFAULT_STYLES = Styles.from_palette(get_palette())
 
 
 class Scene:
@@ -157,7 +182,7 @@ class Scene:
 
     # -- frame ----------------------------------------------------------------
 
-    def frame(self) -> list[list[tuple[str, str]]]:
+    def frame(self, styles: Styles = DEFAULT_STYLES) -> list[list[tuple[str, str]]]:
         """One frame as rows of (char, style), h + 1 rows (the last is the ground)."""
         grid, lum = self.torus()
         sprite = self.step_worker(grid)
@@ -165,9 +190,9 @@ class Scene:
         w, h = self.w, self.h
         rows: list[list[tuple[str, str]]] = []
         for y in range(h):
-            rows.append([(ch, f"color({min(255, 236 + int(lum[y][x] * 14))})" if ch != " " else "")
+            rows.append([(ch, styles.ramp[max(0, min(14, int(lum[y][x] * 14)))] if ch != " " else "")
                          for x, ch in enumerate(grid[y])])
-        rows.append([("▔", GROUND_STYLE)] * w)
+        rows.append([("▔", styles.ground)] * w)
         for dy, (txt, msk) in enumerate(sprite):
             yy = sy + dy
             if not 0 <= yy <= h:
@@ -176,22 +201,22 @@ class Scene:
                 xx = sx + dx
                 if ch != " " and 0 <= xx < w:
                     m = msk[dx] if dx < len(msk) else "."
-                    rows[yy][xx] = (ch, COLORS.get(m, ""))
+                    rows[yy][xx] = (ch, styles.sprite.get(m, ""))
         self.a += 0.07
         self.b += 0.03
         return rows
 
 
-def render(scene: Scene, width: int) -> Text:
+def render(scene: Scene, width: int, styles: Styles = DEFAULT_STYLES) -> Text:
     """The scene with the banner and tagline to its right, if there is room."""
-    rows = scene.frame()
+    rows = scene.frame(styles)
     big = width >= scene.w + 2 + len(BANNER_BIG[0])
     small = width >= scene.w + 2 + len(TAGLINE)
     lines = (BANNER_BIG if big else BANNER_SMALL) if (big or small) else []
-    side: list[tuple[str, str]] = [(ln, BANNER_STYLE) for ln in lines]
+    side: list[tuple[str, str]] = [(ln, styles.banner) for ln in lines]
     if side:
         side.append(("", ""))
-        side.append((TAGLINE, TAGLINE_STYLE))
+        side.append((TAGLINE, styles.tagline))
     top = max(0, (len(rows) - len(side)) // 2)
     text = Text(no_wrap=True, overflow="crop")
     for i, row in enumerate(rows):
@@ -235,4 +260,5 @@ class Banner(Static):
             self.display = want
         if not want or self.app.screen is not self.screen:
             return
-        self.update(render(self.scene, self.size.width or 120))
+        theme = getattr(getattr(self.app, "settings", None), "theme", None)
+        self.update(render(self.scene, self.size.width or 120, Styles.from_palette(get_palette(theme))))

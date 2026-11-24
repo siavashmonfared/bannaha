@@ -6,7 +6,7 @@ from typing import Any
 from ..backends import aws_region, bedrock_problems
 from ..core.registry import register_harness
 from ..core.text import to_json
-from .base import NUDGE, Harness, HarnessReply, TurnRequest
+from .base import NUDGE, Harness, HarnessReply, TurnRequest, coerce_tool_call
 
 MAX_RESULT_CHARS = 30_000
 
@@ -58,6 +58,15 @@ class AnthropicHarness(Harness):
             if text:
                 reply.text = text
             uses = [b for b in resp.content if b.type == "tool_use"]
+            if not uses and req.lenient and text and not req.is_done():
+                found = coerce_tool_call(text, req.tools)
+                if found is not None:  # a call written as text: run it, as if the model had called the tool
+                    out = req.call_tool(*found)
+                    if req.is_done():
+                        break
+                    messages.append({"role": "user", "content": f"Your {found[0].name} call (written as text) "
+                                                                f"returned: {to_json(out, MAX_RESULT_CHARS)}"})
+                    continue
             if not uses:
                 if req.is_done() or not req.terminal_names or nudged:
                     break

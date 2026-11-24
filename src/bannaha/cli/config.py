@@ -33,7 +33,7 @@ class Settings:
     sandbox: str = "process"
     peer_updates: bool = True
     search_model: str = DEFAULT_SEARCH_MODEL
-    theme: str = "ocean"
+    theme: str = "solarized-light"
     max_wall_s: float = 900.0
     max_calls: int = 16
     max_steps: int = 24

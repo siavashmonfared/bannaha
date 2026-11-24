@@ -243,7 +243,7 @@ wheels = [
 
 [[package]]
 name = "banna"
-version = "0.5.0"
+version = "0.5.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anthropic" },
@@ -261,14 +261,14 @@ dependencies = [
     { name = "rich" },
     { name = "textual" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6b/f1/87fa2a3ca5db35294c98d468ca9cf8dfed91b5e91c23ce7cee69c73017f1/banna-0.5.0.tar.gz", hash = "sha256:bd19e4f5fa1ea4c6caeb7d2a01f32b2987feb617b4ed1f77ab87c53ecbcb44d7", size = 269219, upload-time = "2026-07-29T12:21:08.781Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/01/aece5b3363e50a935a3229cb29d2fe8019497d4df1b23e6f1f47fc747f16/banna-0.5.1.tar.gz", hash = "sha256:c02ede610829314e673b560cb41f6aca7e06dda61ee160f1a0c33b0aa15d5624", size = 272810, upload-time = "2026-11-24T19:03:09.92Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/5b/af7e22fc2610690254650b687aa2af04daa610150cf795c6f5d8f06ec93b/banna-0.5.0-py3-none-any.whl", hash = "sha256:36bb4a186c9e440c8f97028bfe49d639518c2edf01e3fb145bcd958a48787e9e", size = 325101, upload-time = "2026-07-29T12:21:07.047Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/2f/f43163ad9f64360f42cffac00d93f1c539ad09a623f45a7ac63c8cbffa61/banna-0.5.1-py3-none-any.whl", hash = "sha256:2ad356c6a50286ebaa52eaed058b9acd301b3ba10d65bc2817fd8ecf5868eb03", size = 328739, upload-time = "2026-11-24T19:03:08.005Z" },
 ]
 
 [[package]]
 name = "bannaha"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "google-genai" },
@@ -325,7 +325,7 @@ dev = [
 requires-dist = [
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.40" },
     { name = "anthropic", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=0.40" },
-    { name = "banna", marker = "extra == 'banna'", specifier = ">=0.5" },
+    { name = "banna", marker = "extra == 'banna'", specifier = ">=0.5.1" },
     { name = "bannaha", extras = ["anthropic", "openai", "adk", "hermes", "banna", "litellm", "bedrock"], marker = "extra == 'all'" },
     { name = "boto3", marker = "extra == 'bedrock'", specifier = ">=1.34" },
     { name = "google-adk", marker = "extra == 'adk'", specifier = ">=1.0" },
@@ -667,7 +667,7 @@ name = "concurrent-log-handler"
 version = "0.9.29"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "portalocker" },
+    { name = "portalocker", marker = "(python_full_version == '3.13.*' and sys_platform != 'emscripten') or sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9c/2c/ba185acc438cff6b58cd8f8dec27e7f4fcabf6968a1facbb6d0cacbde7fe/concurrent_log_handler-0.9.29.tar.gz", hash = "sha256:bc37a76d3f384cbf4a98f693ebd770543edc0f4cd5c6ab6bc70e9e1d7d582265", size = 42114, upload-time = "2026-02-22T18:18:25.758Z" }
 wheels = [
@@ -1398,8 +1398,8 @@ name = "httpcore2"
 version = "2.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11", marker = "python_full_version < '3.12' or python_full_version >= '3.14' or sys_platform != 'emscripten'" },
-    { name = "truststore", marker = "python_full_version < '3.12' or python_full_version >= '3.14' or sys_platform != 'emscripten'" },
+    { name = "h11", marker = "sys_platform != 'emscripten'" },
+    { name = "truststore", marker = "sys_platform != 'emscripten'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cb/f3/1db7aa2bc2524062192bb0e0323969492d1883152a232fe36eea65f4e35c/httpcore2-2.13.1.tar.gz", hash = "sha256:e0aa977abe17e69a3b820a24542a6fa88702676d83880b8d194dcd18408e5103", size = 68071, upload-time = "2026-09-23T07:47:22.372Z" }
 wheels = [

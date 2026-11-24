@@ -139,3 +139,80 @@ def test_usage_events_report_running_cost(make_session):
     s.run()
     usage = kinds(s, ev.USAGE)
     assert usage and abs(usage[-1].data["cost_usd"] - 0.00092) < 1e-12 and usage[-1].data["input_tokens"] == 600
+
+
+def test_deliberative_vote_commits_on_a_first_choice_quorum(make_session):
+    s = make_session("deliberative_vote", "mock@local:42*3,mock@local:41*2")
+    o = s.run()
+    assert (o.status, o.answer, o.detail["decided_by"]) == ("committed", "42", "ballot_quorum")
+    votes = kinds(s, ev.VOTE_CAST)
+    assert len(votes) == 5 and all(v.data["reason"] for v in votes)
+    assert o.detail["rounds"][0]["reasons"]
+
+
+def test_deliberative_vote_carries_the_decision_into_the_next_round(make_session):
+    s = make_session("deliberative_vote", "mock@local:42*2,mock@local:41*2,mock@local:40")
+    o = s.run()
+    assert [r["decision"] for r in o.detail["rounds"]] == ["continue", "commit"]
+    revise = [e for e in kinds(s, ev.PROMPT) if e.data["part"] == "prompt" and "propose again" in e.data["text"]]
+    assert revise and "Last round the group chose" in revise[0].data["text"]
+
+
+def test_deliberative_vote_last_round_fallback(make_session):
+    fleet = "mock@local:42!*2,mock@local:41!*2,mock@local:40!"
+    o = make_session("deliberative_vote", fleet, rounds=2).run()
+    assert o.status == "committed" and o.detail["decided_by"] == "ballot_borda_last_round"
+    assert make_session("deliberative_vote", fleet, rounds=2, fallback="fail").run().status == "failed"
+
+
+def test_deliberative_vote_commits_without_a_ballot_when_all_agree(make_session):
+    s = make_session("deliberative_vote", "mock@local:42*3")
+    o = s.run()
+    assert o.detail["decided_by"] == "proposals_agree" and not kinds(s, ev.VOTE_CAST)
+
+
+def test_prompts_are_logged_once_and_referenced_by_hash(make_session):
+    s = make_session("blackboard", "mock@local:42*3")
+    s.run()
+    starts = kinds(s, ev.TURN_STARTED)
+    prompts = {e.data["sha"]: e.data for e in kinds(s, ev.PROMPT)}
+    assert starts and all({"system_sha", "prompt_sha", "tools_sha"} <= set(e.data) for e in starts)
+    for e in starts:
+        assert prompts[e.data["prompt_sha"]]["part"] == "prompt"
+        assert "What is the answer?" in prompts[e.data["prompt_sha"]]["text"]
+    assert len(prompts) == len(set(prompts))  # each distinct text once
+
+
+def test_usage_events_are_marked_cumulative(make_session):
+    s = make_session("single", "mock@local:42")
+    s.run()
+    assert all(e.data["cumulative"] is True for e in kinds(s, ev.USAGE))
+
+
+def test_turn_that_stops_after_a_failed_tool_call_is_tool_errors():
+    from bannaha.core.fleet import parse_fleet
+    from bannaha.core.registry import register_harness, strategies
+    from bannaha.core.session import Session
+    from bannaha.harnesses.base import Harness, HarnessReply
+    from bannaha.tools.toolbox import ToolOptions
+
+    @register_harness
+    class BadVoter(Harness):
+        name = "bad_voter_test"
+        backends = {"local": []}
+
+        def run_turn(self, req):
+            tools = {t.name: t for t in req.tools}
+            req.call_tool(tools["final_answer"], {"answer": 42, "confidence": "high?"})
+            return HarnessReply()
+
+    s = Session(question="q", fleet=parse_fleet("bad_voter_test@local:x"), strategy=strategies()["single"](),
+                tool_options=ToolOptions(web=False, python=False))
+    s.toolbox._tools["final_answer"] = type(s.toolbox._tools["final_answer"])(
+        "final_answer", "d", s.toolbox._tools["final_answer"].parameters,
+        lambda ctx, a: {"ok": False, "error": "bad args"}, terminal=True)
+    events = []
+    s.bus.subscribe(events.append)
+    s.run()
+    done = [e for e in events if e.kind == ev.TURN_FINISHED]
+    assert done[0].data["status"] == "tool_errors" and done[0].data["tool_errors"] == 1

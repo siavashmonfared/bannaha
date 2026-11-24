@@ -12,7 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Footer, OptionList, Static
 from textual.widgets.option_list import Option
 
-from ..cli.themes import THEMES
+from ..cli.themes import THEME_BLURBS, THEMES, resolve
 from ..core.fleet import fleet_summary, parse_fleet
 from ..core.registry import strategies
 from ..core.text import clip
@@ -131,7 +131,7 @@ class SetupScreen(Screen):
         if key == "limits":
             return fmt_limits(s), "↵ edit"
         if key == "theme":
-            return s.theme, "colors of the run panels"
+            return resolve(s.theme), THEME_BLURBS.get(resolve(s.theme), "colors of the app and run panels")
         if key == "banner":
             return ("on" if s.banner else "off"), "the animated header (ctrl+b toggles it anywhere)"
         return "", ""
@@ -205,8 +205,9 @@ class SetupScreen(Screen):
             s.banner = not s.banner
             self.app.refresh_banners()
         elif key == "theme":
-            names = list(THEMES)
-            s.theme = names[(names.index(s.theme) + step) % len(names)] if s.theme in names else names[0]
+            names, cur = list(THEMES), resolve(s.theme)
+            s.theme = names[(names.index(cur) + step) % len(names)]
+            self.app._apply_theme()
         else:
             return
         self.refresh_rows()
@@ -259,10 +260,11 @@ class SetupScreen(Screen):
         elif key == "limits":
             await self._edit_limits()
         elif key == "theme":
-            opts = [(n, n, "") for n in THEMES]
-            value = await self.app.push_screen_wait(PickerModal("Theme", opts, s.theme))
+            opts = [(n, n, THEME_BLURBS.get(n, "")) for n in THEMES]
+            value = await self.app.push_screen_wait(PickerModal("Theme", opts, resolve(s.theme)))
             if value:
                 s.theme = value
+                self.app._apply_theme()
         self.refresh_rows()
 
     async def _edit_options(self) -> None:

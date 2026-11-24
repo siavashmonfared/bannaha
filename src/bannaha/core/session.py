@@ -6,6 +6,7 @@ hooks, and emits the event stream.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 import time
@@ -23,7 +24,7 @@ from .outcome import Outcome
 from .pricing import SEARCH_FEE_USD, Price, price_for
 from .registry import harnesses
 from .text import result_preview, summarize_args
-from .tools import JsonDict, Tool, ToolContext, TurnState
+from .tools import JsonDict, Tool, ToolContext, TurnState, coerce_args
 
 if TYPE_CHECKING:
     from ..features.base import Feature
@@ -45,7 +46,9 @@ class TurnJob:
 class TurnResult:
     agent: str
     phase: str
-    status: str  # finished | no_terminator | dropped | limit | budget | stopped | error
+    # finished | no_terminator (stopped without the finishing tool) | tool_errors (stopped without it right
+    # after a failed tool call) | dropped | limit | budget | stopped | error
+    status: str
     terminal_tool: str | None = None
     payload: JsonDict | None = None
     text: str = ""
@@ -58,6 +61,10 @@ class TurnResult:
     @property
     def finished(self) -> bool:
         return self.status == "finished" and self.payload is not None
+
+
+def _sha(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 def check_fleet(entries: list[FleetEntry]) -> list[str]:
@@ -108,6 +115,8 @@ class Session:
         self._prices_loaded = False
         self._cost_lock = threading.Lock()
         self._run_budget_hit = False
+        self._prompts_logged: set[str] = set()
+        self._prompt_lock = threading.Lock()
 
     # -- events -------------------------------------------------------------
 
@@ -149,7 +158,7 @@ class Session:
         for a in self.agents:
             if a.label not in self.prices:
                 try:
-                    self.prices[a.label] = price_for(a.backend, a.model)
+                    self.prices[a.label] = price_for(a.backend, a.model, harness=a.harness)
                 except Exception:  # pricing is best effort; a run never fails over it
                     self.prices[a.label] = None
         if self.tool_options.web:
@@ -194,14 +203,33 @@ class Session:
 
     def _usage(self, agent: Agent) -> None:
         s = agent.stats
+        # Running totals for the agent (all turns so far plus the live one), not per-request deltas: sum
+        # turn_finished events for per-turn tokens.
         self.emit(ev.USAGE, agent=agent.id, input_tokens=s.input_tokens + s.live_input_tokens,
                   output_tokens=s.output_tokens + s.live_output_tokens, search_calls=s.search_calls,
-                  cost_usd=s.cost_usd, run_cost_usd=round(self.total_cost(), 6))
+                  cost_usd=s.cost_usd, run_cost_usd=round(self.total_cost(), 6), cumulative=True)
 
     def _on_usage(self, agent: Agent, input_tokens: int, output_tokens: int) -> None:
         agent.stats.live_input_tokens, agent.stats.live_output_tokens = input_tokens, output_tokens
         self._update_cost(agent)
         self._usage(agent)
+
+    def _prompt_refs(self, job: TurnJob) -> dict[str, str]:
+        """Hashes of the exact system prompt, user prompt and tool schemas this turn sends. With
+        `limits.log_prompts`, each distinct text is also emitted once as a `prompt` event, so the run log
+        holds every prompt verbatim without repeating it per turn."""
+        tools = json.dumps([{"name": t.name, "description": t.description, "parameters": t.parameters}
+                            for t in job.tools], sort_keys=True, ensure_ascii=False)
+        refs = {"system_sha": _sha(job.system), "prompt_sha": _sha(job.prompt), "tools_sha": _sha(tools)}
+        if self.limits.log_prompts:
+            for part, sha, text in (("system", refs["system_sha"], job.system),
+                                    ("prompt", refs["prompt_sha"], job.prompt), ("tools", refs["tools_sha"], tools)):
+                with self._prompt_lock:
+                    if sha in self._prompts_logged:
+                        continue
+                    self._prompts_logged.add(sha)
+                self.emit(ev.PROMPT, part=part, sha=sha, text=text)
+        return refs
 
     def alive(self, agents: list[Agent] | None = None) -> list[Agent]:
         return [a for a in (agents if agents is not None else self.agents) if a.alive]
@@ -249,13 +277,14 @@ class Session:
                          max_tool_calls=self.limits.max_tool_calls_per_turn)
         ctx = ToolContext(session=self, agent=agent, turn=turn)
         agent.stats.turns += 1
-        self.emit(ev.TURN_STARTED, agent=agent.id, phase=job.phase)
+        self.emit(ev.TURN_STARTED, agent=agent.id, phase=job.phase, **self._prompt_refs(job))
         req = TurnRequest(
             agent=agent, system=job.system, prompt=job.prompt, tools=job.tools,
             call_tool=lambda tool, args: self.invoke_tool(ctx, tool, args),
             is_done=lambda: turn.done or not agent.alive or self.stopped,
             max_steps=self.limits.max_steps_per_turn, max_output_tokens=self.limits.max_output_tokens,
             on_usage=lambda i, o: self._on_usage(agent, i, o),
+            lenient=self.limits.lenient_tool_calls,
         )
         status, error, reply = "finished", None, None
         try:
@@ -276,7 +305,7 @@ class Session:
         elif status == "error" and self.stopped:
             status = "stopped"
         elif status == "finished" and turn.terminals and not turn.done:
-            status = "no_terminator"
+            status = "tool_errors" if turn.consecutive_errors else "no_terminator"
         if status == "limit" and agent.over_budget:
             status = "budget"
         # Harnesses that report usage live may stop short of their final tally (an aborted call); keep the larger.
@@ -298,7 +327,8 @@ class Session:
             input_tokens=in_tok, output_tokens=out_tok, error=error, tools_used=list(turn.tools_used),
         )
         self.emit(ev.TURN_FINISHED, agent=agent.id, phase=job.phase, status=status,
-                  tool_calls=turn.tool_calls, input_tokens=in_tok, output_tokens=out_tok, error=error,
+                  tool_calls=turn.tool_calls, tool_errors=turn.tool_errors, input_tokens=in_tok,
+                  output_tokens=out_tok, error=error,
                   cost_usd=agent.stats.cost_usd, text=(reply.text if reply else "")[:4000])
         return result
 
@@ -310,6 +340,8 @@ class Session:
                 return {"ok": False, "error": "tool arguments must be a JSON object"}
         if not isinstance(args, dict):
             args = {}
+        if self.limits.lenient_tool_calls:
+            args = coerce_args(tool.parameters, args)
         if self.stopped:
             raise SessionStopped(self.stop_reason)
         for f in self.features:
@@ -342,6 +374,11 @@ class Session:
         if not isinstance(result, dict):
             result = {"ok": True, "result": result}
         result.setdefault("ok", True)
+        if result["ok"]:
+            ctx.turn.consecutive_errors = 0
+        else:
+            ctx.turn.tool_errors += 1
+            ctx.turn.consecutive_errors += 1
         if tool.terminal and result["ok"]:
             ctx.turn.terminal_tool = tool.name
             ctx.turn.terminal_args = dict(args)

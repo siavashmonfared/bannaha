@@ -4,6 +4,7 @@ import asyncio
 from textual.widgets import DataTable, Input, Static
 
 from bannaha.cli.config import Settings
+from bannaha.core.registry import strategies
 from bannaha.tui.app import BannahaApp
 
 MOCK = "mock@local:42*2,mock@local:41*2,mock@local:40"
@@ -22,8 +23,9 @@ def test_setup_toggles_and_start_requires_a_ready_setup(tmp_path, monkeypatch):
         app = BannahaApp(settings=Settings(strategy="blackboard", fleet=MOCK, web=False))
         async with app.run_test(size=(140, 45)) as pilot:
             await pilot.pause()
-            await pilot.press("right")  # strategy: blackboard -> single (alphabetical next)
-            assert app.settings.strategy == "single"
+            names = list(strategies())
+            await pilot.press("right")  # strategy: blackboard -> the next one in the registry
+            assert app.settings.strategy == names[(names.index("blackboard") + 1) % len(names)]
             await pilot.press("left")
             assert app.settings.strategy == "blackboard"
             await pilot.press("down", "down", "right")  # web search on, but no key

@@ -27,8 +27,6 @@ from ..core.text import clip, tilde
 from .live import SPINNER, _fmt_cost, _fmt_tokens, describe_event, describe_round, tool_brief
 from .themes import Theme
 
-PALETTE = ["dodger_blue1", "orange1", "medium_spring_green", "orchid", "gold1", "deep_sky_blue1", "salmon1",
-           "light_green", "violet", "turquoise2", "khaki1", "hot_pink", "sky_blue1", "pale_green1"]
 FINISHING = {
     "final_answer": "Answer", "propose_answer": "Proposal", "cast_vote": "Vote", "send_message": "Message",
     "reply": "Reply",
@@ -105,7 +103,7 @@ class Transcript:
         if k == ev.SESSION_STARTED:
             self.info, self.t0 = d, e.t
             for i, a in enumerate(d.get("fleet", [])):
-                color = self.colors.get(a["id"], {}).get("color") or PALETTE[i % len(PALETTE)]
+                color = self.colors.get(a["id"], {}).get("color") or self.t.agent_colors[i % len(self.t.agent_colors)]
                 self.agents[a["id"]] = {"label": a["label"], "model": a["label"].split(":", 1)[-1],
                                         "role": a.get("role"), "color": color}
             return [] if self.followup else [self._session_header(d)]
@@ -467,5 +465,6 @@ def run_stream(session, console, theme: Theme, run_dir, full: bool = False, foll
     return outcome
 
 
-def fleet_colors(fleet: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    return {a["id"]: {"color": PALETTE[i % len(PALETTE)]} for i, a in enumerate(fleet)}
+def fleet_colors(fleet: list[dict[str, Any]], theme: Theme) -> dict[str, dict[str, Any]]:
+    colors = theme.agent_colors
+    return {a["id"]: {"color": colors[i % len(colors)]} for i, a in enumerate(fleet)}

@@ -4,6 +4,8 @@ Backends:
   direct      model is `vendor/model` with vendor anthropic, openai or gemini
   openrouter  any OpenRouter model (banna's OpenAI-compatible client)
   bedrock     a Bedrock model id
+  local       an Ollama model, e.g. `banna@local:qwen2.5:3b` (banna's native /api/chat client; no key,
+              no extra dependency; OLLAMA_BASE_URL overrides http://localhost:11434)
 
 banna's loop catches `Exception` from tools, so control signals and the
 finishing tool end the turn by raising a `BaseException` subclass. banna
@@ -18,7 +20,7 @@ from typing import Any
 from ..backends import OPENROUTER_BASE_URL, bedrock_problems
 from ..core.errors import TurnControl
 from ..core.registry import register_harness
-from .base import Harness, HarnessReply, TurnRequest
+from .base import Harness, HarnessReply, TurnRequest, coerce_tool_call
 
 VENDORS = {"anthropic": ("ANTHROPIC_API_KEY",), "openai": ("OPENAI_API_KEY",),
            "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY")}
@@ -49,14 +51,15 @@ def _finish_args(tool_name: str, text: str) -> dict[str, Any] | None:
 @register_harness
 class BannaHarness(Harness):
     name = "banna"
-    summary = "banna's ReAct policy (direct Anthropic/OpenAI/Gemini, OpenRouter or Bedrock)."
-    backends = {"direct": [], "openrouter": [("OPENROUTER_API_KEY",)], "bedrock": []}
+    summary = "banna's ReAct policy (direct Anthropic/OpenAI/Gemini, OpenRouter, Bedrock or local Ollama)."
+    backends = {"direct": [], "openrouter": [("OPENROUTER_API_KEY",)], "bedrock": [], "local": []}
     requires_module = "banna_agent"
     extra = "banna"
     model_hints = {
         "direct": ["anthropic/claude-haiku-4-5", "openai/gpt-5-mini", "gemini/gemini-2.5-flash"],
         "openrouter": ["google/gemini-2.5-flash", "anthropic/claude-haiku-4.5"],
         "bedrock": ["us.anthropic.claude-haiku-4-5-20251001-v1:0"],
+        "local": ["qwen2.5:3b", "qwen3:4b", "phi4-mini"],
     }
 
     @classmethod
@@ -85,6 +88,8 @@ class BannaHarness(Harness):
             return llm.make_client("openai", model=model, env_override=cfg), model
         if backend == "bedrock":
             return llm.make_client("bedrock", model=model), model
+        if backend == "local":
+            return llm.make_client("ollama", model=model), model
         vendor, name = _split_vendor(model)
         if vendor == "gemini":
             cfg = llm.GeminiConfig(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
@@ -133,6 +138,10 @@ class BannaHarness(Harness):
             if errors and not state.trace.final_answer:
                 raise RuntimeError(errors[-1].removeprefix("[llm_error] ")[:500])
         final = state.trace.final_answer or ""
+        if not req.is_done() and req.lenient and final:
+            found = coerce_tool_call(final, req.tools)  # a finishing call written as text (small local models)
+            if found is not None:
+                req.call_tool(*found)
         if not req.is_done() and len(terminals) == 1:
             args = _finish_args(terminals[0], final)
             if args is not None:

@@ -41,3 +41,38 @@ def test_vote_window_validation():
     assert b.cast_vote("a0", w.id, ["zz"]).startswith("ranking must list")
     assert b.cast_vote("a0", w.id, ["k2", "k1", "k2"]) is None
     assert w.ballots["a0"] == ["k2", "k1"]
+
+
+def test_window_id_optional_but_stale_ids_rejected():
+    b = Board()
+    w = b.open_vote_window([{"id": "k1", "value": "42"}, {"id": "k2", "value": "41"}])
+    assert b.cast_vote("a0", None, ["k2"]) is None and w.ballots["a0"] == ["k2"]
+    assert b.cast_vote("a1", "", ["k1"]) is None
+    assert b.cast_vote("a2", str(w.id), ["k1"]) is None
+    assert "stale vote window" in b.cast_vote("a3", w.id - 1, ["k1"])
+    assert b.cast_vote("a3", "abc", ["k1"]) == "window_id must be an integer"
+
+
+def test_bare_digits_map_to_a_unique_candidate_suffix():
+    b = Board()
+    w = b.open_vote_window([{"id": "a0", "value": "x"}, {"id": "a1", "value": "y"}, {"id": "a2", "value": "z"}])
+    assert b.cast_vote("v", None, ["2", 0, "a1"]) is None
+    assert w.ballots["v"] == ["a2", "a0", "a1"]
+    assert b.cast_vote("w", None, ["7"]).startswith("ranking must list")
+
+
+def test_single_candidate_ballot_needs_no_ranking():
+    b = Board()
+    w = b.open_vote_window([{"id": "a0", "value": "x"}])
+    assert b.cast_vote("v", None, []) is None and w.ballots["v"] == ["a0"]
+    assert b.cast_vote("u", None, [0, 1, 2, 9]) is None and w.ballots["u"] == ["a0"]
+
+
+def test_vote_reason_is_kept_for_audit_but_not_shown_to_peers():
+    b = Board()
+    w = b.open_vote_window([{"id": "k1", "value": "42"}, {"id": "k2", "value": "41"}])
+    assert b.cast_vote("a0", None, ["k1"], reason="lowest measured E") is None
+    assert w.reasons == {"a0": "lowest measured E"}
+    changes, _ = b.changes_since(0, exclude="a1")
+    assert all("reason" not in c for c in changes if c["kind"] == "vote")
+    assert b.cast_vote("a0", None, ["k2"]) is None and "a0" not in w.reasons  # a new ballot replaces the reason

@@ -30,7 +30,7 @@ from .themes import Theme
 STATUS = {
     "idle": ("·", "muted"), "thinking": ("◐", "accent"), "tool": ("⚙", "tool"), "done": ("✓", "ok"),
     "dropped": ("✕", "err"), "error": ("!", "err"), "limit": ("⌛", "warn"), "stopped": ("■", "warn"),
-    "no_terminator": ("?", "warn"), "budget": ("$", "warn"),
+    "no_terminator": ("?", "warn"), "tool_errors": ("✗", "warn"), "budget": ("$", "warn"),
 }
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 RECENT = 4  # steps shown per agent in the activity panel

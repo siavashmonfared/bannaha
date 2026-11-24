@@ -209,21 +209,25 @@ def cast_vote_tool() -> Tool:
         ranking = args.get("ranking") or []
         if isinstance(ranking, str):
             ranking = [r.strip() for r in ranking.split(",")]
-        err = ctx.session.board.cast_vote(ctx.agent.id, args.get("window_id"), list(ranking))
+        if not isinstance(ranking, list):
+            ranking = [ranking]
+        err = ctx.session.board.cast_vote(ctx.agent.id, args.get("window_id"), ranking, args.get("reason"))
         if err:
             return {"ok": False, "error": err}
         w = ctx.session.board.vote_window
         ctx.session.emit(ev.VOTE_CAST, agent=ctx.agent.id, window_id=w.id if w else None,
-                         ranking=w.ballots.get(ctx.agent.id) if w else ranking)
+                         ranking=w.ballots.get(ctx.agent.id) if w else ranking,
+                         reason=w.reasons.get(ctx.agent.id, "") if w else "")
         return {"ok": True}
 
     return Tool(
         name="cast_vote",
         description="Rank the candidate answers in the open vote, best first. This ends your turn.",
         parameters=schema({
-            "window_id": {"type": "integer"},
             "ranking": {"type": "array", "items": {"type": "string"}, "description": "Candidate ids, best first."},
-        }, ["window_id", "ranking"]),
+            "reason": {"type": "string", "description": "Optional: one line on why your first choice is best."},
+            "window_id": {"type": "integer", "description": "Optional: the open vote window (filled in if omitted)."},
+        }, ["ranking"]),
         handler=handler,
         terminal=True,
     )

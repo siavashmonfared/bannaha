@@ -45,3 +45,12 @@ def test_overrides_win(tmp_path):
     ov = load_overrides(f)
     p = price_for("direct", "gpt-5-mini", overrides=ov, table=table())
     assert isinstance(p, Price) and p.per_mtok() == (9.0, 10.0)
+
+
+def test_local_models_other_than_the_mock_are_free_and_overrides_still_win(tmp_path):
+    assert price_for("local", "42", harness="mock").source == "mock (fixed)"
+    p = price_for("local", "qwen2.5:3b", harness="banna", overrides={})
+    assert p.cost(10**6, 10**6) == 0 and p.source.startswith("local")
+    f = tmp_path / "prices.toml"
+    f.write_text('["qwen2.5:3b"]\ninput_per_mtok = 0.1\noutput_per_mtok = 0.2\n')
+    assert price_for("local", "qwen2.5:3b", harness="banna", overrides=load_overrides(f)).per_mtok() == (0.1, 0.2)

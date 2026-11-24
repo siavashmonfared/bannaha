@@ -9,9 +9,10 @@ decides what happens if even that has no quorum.
 """
 from __future__ import annotations
 
+import random
 from typing import TYPE_CHECKING, Any
 
-from ..consensus.ballots import borda, first_choices
+from ..consensus.ballots import borda, first_choices, leader, tied_top
 from ..consensus.clustering import Cluster, cluster_answers
 from ..consensus.quorum import Quorum
 from ..core import events as ev
@@ -58,7 +59,7 @@ def _revise_prompt(question: str, r: int, rounds: int, candidates: str) -> str:
 def _ballot_prompt(question: str, window_id: int, candidates: str) -> str:
     return (f"Question: {question}\n\nNo candidate reached quorum. Rank the candidates from most to least "
             f"likely to be correct, based on the evidence on the board (read_board).\n{candidates}\n\n"
-            f"Call cast_vote with window_id {window_id} and your ranking of candidate ids, best first.")
+            "Call cast_vote with your ranking of candidate ids, best first, and a one-line reason.")
 
 
 def _evidence(board: Board, cluster: Cluster, round_no: int) -> dict[str, int]:
@@ -100,6 +101,7 @@ class Blackboard(Strategy):
         "tolerance": Option(float, 0.005, "relative tolerance when grouping numeric answers"),
         "ballot": Option(bool, True, "run a ranked ballot if no quorum after the last round"),
         "fallback": Option(str, "plurality", "if still no quorum: 'plurality' (commit the leader) or 'fail'"),
+        "seed": Option(int, -1, "seed for breaking exact ballot ties at random; -1 keeps candidate order"),
     }
 
     def run(self, session: Session) -> Outcome:
@@ -178,18 +180,21 @@ class Blackboard(Strategy):
             return None
         ids = [c["id"] for c in cands]
         firsts = first_choices(ballots)
-        scores = borda(ballots, ids)
+        rng = random.Random(self.opts["seed"]) if self.opts["seed"] >= 0 else None
+        scores = borda(ballots, ids, rng=rng)
         n = len(live_ids)
-        leader, leader_votes = firsts.most_common(1)[0]
+        top_id, leader_votes, tied = leader(firsts, scores)
         decision = "commit" if quorum.reached(leader_votes, n) else "no_quorum"
         record = {"round": last_round + 1, "phase": "ballot", "alive": n, "needed": quorum.needed(n),
                   "first_choices": dict(firsts), "borda": dict(scores), "decision": decision,
+                  "first_choice_tie": tied if len(tied) > 1 else [], "borda_tie": tied_top(scores),
+                  "reasons": dict(window.reasons) if window else {},
                   "clusters": [c.view() for c in clusters]}
         history.append(record)
         session.emit(ev.ROUND_CLOSED, **record)
         by_id = {c.id: c for c in clusters}
         if decision == "commit":
-            c = by_id[leader]
+            c = by_id[top_id]
             return Outcome("committed", c.display, c.unit, detail={"decided_by": "ballot", "votes": leader_votes,
                                                                    "alive": n, "rounds": history})
         if self.opts["fallback"] == "plurality":

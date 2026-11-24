@@ -10,9 +10,12 @@ class Limits:
     max_total_tokens: int | None = None
     max_cost_usd: float | None = None  # whole run, at list prices (see core.pricing)
     max_agent_cost_usd: float | None = None  # per agent, across all its turns
+    log_prompts: bool = True  # record each distinct system prompt, user prompt and tool schema once
+    lenient_tool_calls: bool = True  # repair argument types and recover tool calls written as text
 
     def describe(self) -> dict:
         return {"tool_calls_per_turn": self.max_tool_calls_per_turn, "steps_per_turn": self.max_steps_per_turn,
                 "output_tokens": self.max_output_tokens, "wall_s": self.max_wall_s,
                 "total_tokens": self.max_total_tokens, "cost_usd": self.max_cost_usd,
-                "agent_cost_usd": self.max_agent_cost_usd}
+                "agent_cost_usd": self.max_agent_cost_usd,
+                "log_prompts": self.log_prompts, "lenient_tool_calls": self.lenient_tool_calls}

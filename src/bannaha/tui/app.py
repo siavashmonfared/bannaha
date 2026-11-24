@@ -8,14 +8,13 @@ from textual.binding import Binding
 
 from ..cli.config import Settings, load_env_files, load_settings, save_settings
 from ..cli.runner import problems_for
+from ..cli.themes import textual_name, textual_theme_specs
 from ..core.fleet import parse_fleet
 from .fleet import FleetScreen
 from .keys import KeysScreen
 from .run import RunScreen
 from .runs import RunsScreen
 from .setup import SetupScreen, _fmt_drop
-
-TEXTUAL_THEMES = {"ocean": "tokyo-night", "sunset": "gruvbox", "mono": "textual-dark"}
 
 
 class BannahaApp(App):
@@ -40,11 +39,22 @@ class BannahaApp(App):
         self.start_mode = start if start in self.MODES else "setup"
 
     def on_mount(self) -> None:
+        self._register_themes()
         self._apply_theme()
         self.switch_mode(self.start_mode)
 
+    def _register_themes(self) -> None:
+        """Register banna's palettes as Textual themes, so the app chrome matches banna's launch TUI."""
+        from textual.theme import Theme as TextualTheme
+
+        for spec in textual_theme_specs():
+            try:
+                self.register_theme(TextualTheme(**spec))
+            except Exception:  # an older Textual without this Theme signature keeps its default colors
+                return
+
     def _apply_theme(self) -> None:
-        name = TEXTUAL_THEMES.get(self.settings.theme, "textual-dark")
+        name = textual_name(self.settings.theme)
         if name in self.available_themes:
             self.theme = name
 

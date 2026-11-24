@@ -136,14 +136,19 @@ def load_overrides(path: Path | None = None) -> dict[str, Price]:
     return out
 
 
-def price_for(backend: str, model: str, *, overrides: dict[str, Price] | None = None,
+def price_for(backend: str, model: str, *, harness: str | None = None, overrides: dict[str, Price] | None = None,
               table: dict[str, dict[str, Any]] | None = None) -> Price | None:
-    if backend == "local":  # the offline mock: a fixed, made-up price so settlement math is testable
-        return Price(1e-6, 4e-6, "mock (fixed)", model)
+    """List price for a model. prices.toml always wins. On the `local` backend the offline mock harness gets
+    a fixed, made-up price (so settlement math is testable); any other local model (Ollama, a llama.cpp
+    server, ...) runs on your own machine and costs $0. `harness=None` keeps the old behavior: mock."""
     overrides = load_overrides() if overrides is None else overrides
     for k in (model.lower(), openrouter_id(backend, model).lower()):
         if k in overrides:
             return overrides[k]
+    if backend == "local":
+        if harness in (None, "mock"):
+            return Price(1e-6, 4e-6, "mock (fixed)", model)
+        return Price(0.0, 0.0, "local (runs on this machine)", model)
     table = load_openrouter() if table is None else table
     oid = openrouter_id(backend, model)
     entry = table.get(oid.lower()) or table.get(_key(oid))

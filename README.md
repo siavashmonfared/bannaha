@@ -7,14 +7,18 @@ how the group reaches an answer, and what happens when part of the fleet goes da
 - **Any harness, any backend.** Mix agents built on different agent loops (Anthropic SDK, OpenAI Agents
   SDK, Google ADK, Hermes Agent, banna) reaching models through different routes (direct API, OpenRouter,
   Amazon Bedrock) in one fleet.
-- **Pluggable strategies.** A single-agent baseline, independent voting, and a shared blackboard where
-  peers cross-check evidence until they agree. Adding one is one file.
+- **Pluggable strategies.** A single-agent baseline, independent voting, a shared blackboard where
+  peers cross-check evidence until they agree, and a deliberative vote where peers rank each other's
+  proposals every round. Adding one is one file.
 - **Follow-ups with memory.** When a run ends, keep asking about it; the answers come from an agent that
   has the whole run as memory.
 - **Same tools everywhere.** One tool spec, translated per harness: web search, page fetch, document
   search, sandboxed Python, and a set of communication tools for the shared board.
 - **Fault injection.** Drop a fraction of the fleet mid-run and compare how strategies cope.
-- **Everything is an event.** The live view and the JSONL run log are subscribers to one event stream.
+- **Everything is an event.** The live view and the JSONL run log are subscribers to one event stream,
+  including the exact prompts each agent was sent.
+- **Small local models welcome.** Run Ollama models through the banna harness with no key and no extra
+  dependency; tool calls that small models garble are repaired where that is unambiguous.
 
 ## Install
 
@@ -117,6 +121,11 @@ Run `bannaha` with no arguments to open the full-screen app. Number keys switch 
 The animated header (a torus and the crew member who builds on it) sits under the page bar; `ctrl+b`
 hides or shows it on any page, and Setup → Banner saves the choice.
 
+The app shares its look with [banna](https://github.com/siavashmonfared/banna): the same themes
+(`solarized-light`, the default, `solarized-dark`, `gruvbox-dark`, `dracula`, `mono`), registered as the
+same Textual themes, and the same color roles in the run panels. Pick one on Setup → Theme or with
+`--theme`; the older names `ocean` and `sunset` map to `solarized-dark` and `gruvbox-dark`.
+
 Settings saved with `d` go to `~/.config/bannaha/config.toml`. `bannaha run …` is the scriptable path
 with no full-screen app; flags override the saved settings for that run.
 
@@ -142,7 +151,9 @@ apply mid-turn; Hermes and banna report at the end of a turn, so their spend is 
 
 Prices come from OpenRouter's public model list, which also lists OpenAI, Anthropic and Google models,
 so it serves as the list price for direct and Bedrock runs too; pin anything else in
-`~/.config/bannaha/prices.toml` (`["model"]` with `input_per_mtok` and `output_per_mtok`). `bannaha
+`~/.config/bannaha/prices.toml` (`["model"]` with `input_per_mtok` and `output_per_mtok`), which always
+wins. Models on the `local` backend run on your machine and cost $0 (the offline `mock` harness uses a
+fixed made-up price so cost limits can be tested). `bannaha
 prices` shows what your fleet will be charged, and `bannaha prices --md prices.md` writes it as a table
 with the pricing links. Caching, batch discounts and long-context surcharges are not modeled.
 
@@ -156,7 +167,7 @@ A fleet is `harness@backend:model*count`, comma separated. Count defaults to 1.
 | `openai` | `direct`, `openrouter`, `bedrock` | OpenAI Agents SDK; tracing disabled; Bedrock via LiteLLM |
 | `adk` | `direct` (Gemini), `openrouter`, `bedrock` | Google ADK; non-Gemini models via LiteLLM |
 | `hermes` | `openrouter`, `direct` (OpenAI), `local` | Nous Research Hermes Agent; `local` is any OpenAI-compatible server at `BANNAHA_HERMES_BASE_URL` |
-| `banna` | `direct`, `openrouter`, `bedrock` | banna's ReAct policy; on `direct` the model is `vendor/model` (`anthropic/…`, `openai/…`, `gemini/…`) |
+| `banna` | `direct`, `openrouter`, `bedrock`, `local` | banna's ReAct policy; on `direct` the model is `vendor/model` (`anthropic/…`, `openai/…`, `gemini/…`); `local` is an Ollama model such as `banna@local:qwen2.5:3b` (`OLLAMA_BASE_URL`, default `http://localhost:11434`) |
 | `mock` | `local` | offline scripted agent for demos and tests |
 
 | backend | needs |
@@ -188,6 +199,7 @@ Some notes on how the adapters work:
 | `single` | one agent answers alone; the baseline | – |
 | `vote` | agents answer independently and never see each other; the most common answer wins | self-consistency, Wang et al. 2022 |
 | `blackboard` | peers research, post claims with evidence to a shared board, endorse or challenge each other, and propose answers; commit when one answer reaches quorum, otherwise revise; if no quorum by the last round, rank the candidates in a ballot | cluster → quorum → revise, Borda ballot |
+| `deliberative_vote` | every round, peers propose answers, then all rank every proposal in a ballot with a reason; the decision and the reasons open the next round; commit at a first-choice quorum, otherwise after the last round | propose → deliberate → vote |
 
 **`blackboard` in detail.** Each round, every live agent reads the shared board, researches, posts the
 facts it establishes as claims (value, short verbatim quote, source), endorses, challenges or
@@ -199,6 +211,22 @@ a ballot (Borda count); `fallback=plurality` then commits the leader, `fallback=
 Proposals carry the board version the agent last read, and a proposal made on a stale board is sent
 back once so the agent can catch up.
 
+**`deliberative_vote` in detail.** Unlike `vote`, voters see all the candidates and the evidence behind
+them before choosing. Each round: propose (as in `blackboard`), group the proposals into candidates, then
+a ranked ballot (`cast_vote` with a one-line reason). A quorum of first choices commits; otherwise the
+Borda leader becomes the round's decision and is shown, with the tally and the reasons
+(`show_reasons`), at the start of the next round. If every proposal agrees there is no ballot. Override
+`evaluate()` in a subclass to attach scores or measurements to each candidate on the ballot. It earns its
+tokens where code cannot rank the candidates (several objectives, answers that must be judged); when a
+script can score them, keeping the best-scoring one is usually as good and much cheaper.
+
+**Ballots.** `cast_vote` needs only `ranking`; the open window is used when `window_id` is left out
+(an id that is sent must still be the open one). A bare number such as `"1"` is read as the candidate
+whose id ends in that number when exactly one does, and a ballot with a single candidate needs no
+ranking. Exact Borda ties go to the first-listed candidate unless `seed` is set (blackboard and
+deliberative_vote), which breaks them, and shuffles the candidate listing, reproducibly at random; a tie
+on first choices goes to the higher Borda score, never to whichever ballot arrived first.
+
 Options are set with `-o key=value`, for example `-o rounds=4 -o quorum=0.6 -o fallback=fail`.
 `bannaha list strategies` shows every option and its default.
 
@@ -208,10 +236,18 @@ Options are set with `-o key=value`, for example `-o rounds=4 -o quorum=0.6 -o f
 |---|---|
 | research | `web_search` (Gemini with Google Search grounding), `fetch_page`, `search_documents`, `run_python` |
 | board | `read_board`, `post_claim`, `endorse_claim`, `challenge_claim`, `corroborate`, `send_message`, `read_messages` |
-| finishing | `final_answer` (single, vote), `propose_answer` and `cast_vote` (blackboard), `reply` (follow-ups) |
+| finishing | `final_answer` (single, vote), `propose_answer` and `cast_vote` (blackboard, deliberative_vote), `reply` (follow-ups) |
 
 Each strategy decides which tools an agent gets. `--no-web` removes the web tools; `--no-python`
 removes `run_python`. Web search needs `GEMINI_API_KEY` even when no agent uses a Gemini model.
+
+**Lenient tool calls.** Small models often get the call format wrong. Every tool's arguments are repaired
+against its schema (`"5"` for an integer, a JSON-encoded string for an array, `"a0, a1"` for a list), and
+the anthropic and banna harnesses recover a call written in the reply text: `{"name": ..., "arguments":
+...}`, `tool(a, b)`, or, when only one tool is offered, a bare JSON object or `key: value` lines. A
+recovered call must name an offered tool and carry every required argument. A turn that ends without its
+finishing tool right after a failed tool call is reported as `tool_errors`, apart from `no_terminator`
+(the model simply stopped).
 
 `run_python` runs in a host subprocess by default (`--sandbox process`): it has a wall-time limit but
 shares your filesystem, network and credentials. Use `--sandbox docker` for a throwaway container with
@@ -242,7 +278,10 @@ bannaha run "$Q" -s blackboard -f "$F" --drop 0.5 --seed 7
 Every run is saved to `~/.local/share/bannaha/runs/<timestamp>-<strategy>/` (override with
 `--runs-dir` or `BANNAHA_RUNS_DIR`, disable with `--no-save`):
 
-- `events.jsonl`: every event, one per line
+- `events.jsonl`: every event, one per line. `turn_started` carries `system_sha`, `prompt_sha` and
+  `tools_sha`, and each distinct system prompt, user prompt and tool schema is logged once as a `prompt`
+  event with its full text, so you can see exactly what every agent was sent. `usage` events are running
+  totals per agent (`cumulative: true`); sum `turn_finished` for per-turn tokens.
 - `result.json`: the question, fleet, options, outcome and per-agent stats
 - `followups.jsonl`: the follow-up conversation, if any
 

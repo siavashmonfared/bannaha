@@ -7,6 +7,7 @@ read back is peer data, never instructions.
 """
 from __future__ import annotations
 
+import re
 import threading
 from dataclasses import dataclass, field
 from typing import Any
@@ -68,6 +69,20 @@ class VoteWindow:
     candidates: list[dict[str, Any]]
     open: bool = True
     ballots: dict[str, list[str]] = field(default_factory=dict)
+    reasons: dict[str, str] = field(default_factory=dict)  # the voter's stated reason; audit trail, not shown to peers
+
+    def match_id(self, raw: Any) -> str | None:
+        """A candidate id for what a voter wrote: the id itself, or a bare number matching exactly one
+        candidate id's numeric suffix (small models write "1" for "k1" or "0" for "a0")."""
+        r = str(raw).strip()
+        ids = [str(c["id"]) for c in self.candidates]
+        if r in ids:
+            return r
+        if r.isdigit():
+            hits = [i for i in ids if (m := re.search(r"(\d+)$", i)) and int(m.group(1)) == int(r)]
+            if len(hits) == 1:
+                return hits[0]
+        return None
 
 
 @dataclass
@@ -201,22 +216,34 @@ class Board:
             self._record("vote_window", "session", {"window_id": self._windows, "candidates": candidates})
             return self.vote_window
 
-    def cast_vote(self, agent: str, window_id: Any, ranking: list[Any]) -> str | None:
+    def cast_vote(self, agent: str, window_id: Any, ranking: list[Any], reason: Any = None) -> str | None:
+        """Record a ranked ballot. `window_id` may be omitted (None or "") to vote in the open window; an id
+        that is sent must still match it, so a ballot meant for an earlier window is rejected. When only one
+        candidate is on the ballot, an empty or unreadable ranking counts as a vote for it."""
         with self._lock:
             w = self.vote_window
             if w is None or not w.open:
                 return "no vote window is open"
-            try:
-                wid = int(window_id)
-            except (TypeError, ValueError):
-                return "window_id must be an integer"
+            if window_id is None or (isinstance(window_id, str) and not window_id.strip()):
+                wid = w.id
+            else:
+                try:
+                    wid = int(window_id)
+                except (TypeError, ValueError):
+                    return "window_id must be an integer"
             if wid != w.id:
                 return f"stale vote window {wid}; the open window is {w.id}"
-            valid = {c["id"] for c in w.candidates}
-            order = [str(r) for r in ranking if str(r) in valid]
+            order = [m for r in ranking if (m := w.match_id(r)) is not None]
+            if not order and len(w.candidates) == 1:
+                order = [str(w.candidates[0]["id"])]
             if not order:
-                return f"ranking must list candidate ids from {sorted(valid)}"
+                return f"ranking must list candidate ids from {sorted(str(c['id']) for c in w.candidates)}"
             w.ballots[agent] = list(dict.fromkeys(order))
+            text = clean_peer_text(reason, 400) if reason is not None else ""
+            if text:
+                w.reasons[agent] = text
+            else:
+                w.reasons.pop(agent, None)
             self._record("vote", agent, {"window_id": wid, "ranking": w.ballots[agent]})
             return None
 

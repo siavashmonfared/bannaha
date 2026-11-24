@@ -74,7 +74,7 @@ def strongest(labels: list[str]) -> str:
     for label in labels:
         try:
             e = parse_fleet(label)[0]
-            p = price_for(e.backend, e.model)
+            p = price_for(e.backend, e.model, harness=e.harness)
         except Exception:  # pricing is best effort
             p = None
         price = p.output_per_tok if p else 0.0

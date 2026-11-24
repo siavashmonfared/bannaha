@@ -15,7 +15,8 @@ SESSION_STARTED = "session_started"
 SESSION_FINISHED = "session_finished"
 ROUND_STARTED = "round_started"
 ROUND_CLOSED = "round_closed"
-TURN_STARTED = "turn_started"
+TURN_STARTED = "turn_started"  # carries system_sha / prompt_sha / tools_sha
+PROMPT = "prompt"  # one distinct prompt text (part = system | prompt | tools), emitted once per sha
 TURN_FINISHED = "turn_finished"
 TOOL_CALLED = "tool_called"
 TOOL_RETURNED = "tool_returned"
@@ -29,7 +30,7 @@ VOTE_WINDOW_OPENED = "vote_window_opened"
 VOTE_CAST = "vote_cast"
 AGENT_DROPPED = "agent_dropped"
 ANSWER_SUBMITTED = "answer_submitted"
-USAGE = "usage"
+USAGE = "usage"  # running totals per agent (cumulative=True), not per-request deltas
 BUDGET_REACHED = "budget_reached"
 WARNING = "warning"
 

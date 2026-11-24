@@ -129,7 +129,8 @@ def followup_loop(console: Console, theme, s: Settings, memory, a: RunArgs | Non
             console.print(f"[{theme.warn}]unknown command {escape(cmd)}; /help lists them[/]")
         else:
             session = chat.session(text, opts, limits_for(s, a))
-            outcome = run_stream(session, console, theme, None, followup=True, colors=fleet_colors(chat.memory.fleet))
+            colors = fleet_colors(chat.memory.fleet, theme)
+            outcome = run_stream(session, console, theme, None, followup=True, colors=colors)
             chat.record(text, outcome, session.total_cost())
         if once:
             return
@@ -296,7 +297,7 @@ def prices_cmd(
         for e in parse_fleet(fleet or s.fleet):
             if e.label not in seen:
                 seen.add(e.label)
-                rows.append((e.label, e.backend, price_for(e.backend, e.model, table=table)))
+                rows.append((e.label, e.backend, price_for(e.backend, e.model, harness=e.harness, table=table)))
         if s.web:
             rows.append((f"web search: {s.search_model}", "direct", price_for("direct", s.search_model, table=table)))
     out = Table(box=None, title="list prices, USD per 1M tokens", title_justify="left")

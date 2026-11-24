@@ -58,3 +58,21 @@ def test_transcript_full_and_focus():
     assert "web_search" in focused and "run_python" not in focused
     status = tr.status()
     assert "following a0" in status.plain
+
+
+def test_themes_match_banna_and_old_names_still_work():
+    from bannaha.cli.themes import DEFAULT_THEME, PALETTES, get_theme, textual_name, textual_theme_specs
+
+    assert DEFAULT_THEME == "solarized-light"
+    assert list(PALETTES) == ["solarized-light", "solarized-dark", "gruvbox-dark", "dracula", "mono"]
+    assert get_theme("ocean").name == "solarized-dark" and get_theme("nope").name == DEFAULT_THEME
+    assert get_theme("solarized-light").title == "bold #859900"  # banna's scout.title
+    assert textual_name("mono") == "textual-ansi" and textual_name("dracula") == "banna-dracula"
+    specs = {s["name"]: s for s in textual_theme_specs()}
+    assert specs["banna-solarized-light"]["background"] == "#fdf6e3" and not specs["banna-solarized-light"]["dark"]
+    try:  # the same palettes banna ships, when banna is installed
+        from banna_agent.cli import themes as banna_themes
+    except ImportError:
+        return
+    for name, palette in PALETTES.items():
+        assert banna_themes.PALETTES.get(name) == palette
